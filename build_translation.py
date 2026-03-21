@@ -96,6 +96,12 @@ def load_ini(path: str) -> dict:
             while val.endswith("\\n"):
                 val = val[:-2].rstrip()
             loc[key] = val
+            # ,P suffix fallback (CIG plural/pending marker)
+            for suffix in (",P", ",p"):
+                if key.endswith(suffix):
+                    bare_key = key[:-len(suffix)]
+                    if bare_key not in loc:
+                        loc[bare_key] = val
 
     return loc
 
