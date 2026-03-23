@@ -600,14 +600,101 @@ def build_translation(template: dict, foreign_ini_path: str, version: str,
 # Main
 # ---------------------------------------------------------------------------
 
+def _print_translation_report(translation, stats, out_name):
+    """Print translation build report to console."""
+    print(f"\n=== Result ===")
+    print(f"  File:          {out_name}")
+    print(f"  Total:         {stats['total']}")
+    print(f"  Translated:    {stats['translated']}")
+    print(f"  Missing:       {stats['missing']}")
+    print(f"  Mismatch:      {stats.get('mismatch', 0)} (token placeholders in foreign text)")
+    print(f"  Substituted:   {stats.get('tokenSubstitutions', 0)} (placeholders replaced with foreign values)")
+    print(f"  No loc key:    {stats['noLocKey']} (kept as-is)")
+
+    if stats["missing"] > 0:
+        print(f"\n=== Missing keys ({stats['missing']}) ===")
+        for k in stats["missingKeys"][:20]:
+            print(f"  {k}")
+        if stats["missing"] > 20:
+            print(f"  ... and {stats['missing'] - 20} more")
+        print(f"\nThese keys are missing from the foreign global.ini.")
+        print(f"Fallback: English text is used.")
+
+    if stats.get("mismatch", 0) > 0:
+        print(f"\n=== Token mismatches ({stats['mismatch']}) ===")
+        print(f"These keys have token placeholders in the foreign text")
+        print(f"that were already resolved in the English version.")
+        for k in stats["mismatchKeys"][:30]:
+            en_text = translation["keys"].get(k, {}).get("en", "?")
+            tr_text = translation["keys"].get(k, {}).get("tr", "?")
+            en_short = (en_text[:60] + "...") if len(en_text) > 63 else en_text
+            tr_short = (tr_text[:60] + "...") if len(tr_text) > 63 else tr_text
+            print(f"  {k}")
+            for label, text in [("EN", en_short), ("TR", tr_short)]:
+                try:
+                    print(f"    {label}: {text}")
+                except UnicodeEncodeError:
+                    print(f"    {label}: {text.encode('ascii', 'replace').decode()}")
+        if stats["mismatch"] > 30:
+            print(f"  ... and {stats['mismatch'] - 30} more")
+
+
 def main():
-    parser = argparse.ArgumentParser(description="SCMDB Language Template Builder")
+    parser = argparse.ArgumentParser(
+        description="SCMDB Language Template Builder + Translation Tool",
+        epilog="Translate mode (standalone): python build_lang_template.py --translate foreign.ini"
+    )
     parser.add_argument("-p", "--profile", default="ptu", choices=["live", "ptu", "nda"],
-                        help="Profile (default: ptu)")
+                        help="Profile (default: ptu). Only needed for template generation.")
     parser.add_argument("--translate", metavar="GLOBAL_INI",
                         help="Path to foreign global.ini -> builds translation")
     args = parser.parse_args()
 
+    # --translate standalone mode: only needs template JSON + foreign INI
+    # No parser infrastructure (parser_version_tags.json, records/, EN global.ini) required.
+    if args.translate:
+        if not os.path.exists(args.translate):
+            print(f"[ERROR] File not found: {args.translate}")
+            sys.exit(1)
+
+        # Find template JSON in script directory, filtered by profile
+        all_templates = sorted(glob.glob(os.path.join(SCRIPT_DIR, "lang-template-*.json")))
+        profile = args.profile  # default: ptu
+        template_files = [t for t in all_templates
+                          if f"-{profile}." in os.path.basename(t)]
+        if not template_files:
+            # Fallback: try all templates
+            template_files = all_templates
+        if not template_files:
+            print("[ERROR] No lang-template-*.json found in script directory.")
+            print("  Place the template file next to this script.")
+            sys.exit(1)
+        template_path = template_files[-1]  # newest matching profile
+
+        print(f"Loading template: {os.path.basename(template_path)}")
+        with open(template_path, encoding="utf-8") as f:
+            template = json.load(f)
+
+        version = template.get("version", "unknown")
+        print(f"  Version: {version}")
+        print(f"  Keys:    {len(template.get('keys', {}))}")
+
+        print(f"\nBuilding translation from {args.translate}...")
+        # en_loc not needed in standalone mode (pass empty dict)
+        translation, stats = build_translation(template, args.translate, version, {})
+
+        # Derive filename from INI name
+        ini_basename = os.path.splitext(os.path.basename(args.translate))[0]
+        out_name = f"lang-{ini_basename}-{version}.json"
+        out_path = os.path.join(SCRIPT_DIR, out_name)
+
+        with open(out_path, "w", encoding="utf-8") as f:
+            json.dump(translation, f, ensure_ascii=False, indent=2)
+
+        _print_translation_report(translation, stats, out_name)
+        return
+
+    # --- Template generation mode (needs full parser infrastructure) ---
     records_root, prefix, version = get_profile_config(args.profile)
 
     # Load English global.ini
@@ -630,7 +717,6 @@ def main():
     merged_pattern = os.path.join(SCRIPT_DIR, f"merged-{version}.json")
     merged_files = glob.glob(merged_pattern)
     if not merged_files:
-        # Try with prefix
         merged_pattern = os.path.join(SCRIPT_DIR, f"{prefix}merged-{version}.json")
         merged_files = glob.glob(merged_pattern)
     if not merged_files:
@@ -640,7 +726,7 @@ def main():
     merged_path = merged_files[0]
     print(f"Reading {os.path.basename(merged_path)}...")
 
-    # Collect keys (raw_keys for mismatch detection in translation mode)
+    # Collect keys
     raw_keys = {}
     all_keys = collect_keys_from_merged(merged_path, reverse, reverse_all, en_loc,
                                         tag_to_keys, key_to_tag, raw_keys)
@@ -664,72 +750,16 @@ def main():
         print(f"  {cat:20s}: {len(entries):5d} ({nl} without global.ini key)")
     print(f"  {'TOTAL':20s}: {total:5d} ({noloc} without key)")
 
-    if args.translate:
-        # Build translation
-        if not os.path.exists(args.translate):
-            print(f"[ERROR] File not found: {args.translate}")
-            sys.exit(1)
+    # Generate template
+    template = build_template(all_keys, version, raw_keys)
+    out_name = f"lang-template-{version}.json"
+    out_path = os.path.join(SCRIPT_DIR, out_name)
 
-        template = build_template(all_keys, version, raw_keys)
-        print(f"\nBuilding translation from {args.translate}...")
-        translation, stats = build_translation(template, args.translate, version, en_loc)
+    with open(out_path, "w", encoding="utf-8") as f:
+        json.dump(template, f, ensure_ascii=False, indent=2)
 
-        # Derive filename from INI name
-        ini_basename = os.path.splitext(os.path.basename(args.translate))[0]
-        out_name = f"lang-{ini_basename}-{version}.json"
-        out_path = os.path.join(SCRIPT_DIR, out_name)
-
-        with open(out_path, "w", encoding="utf-8") as f:
-            json.dump(translation, f, ensure_ascii=False, indent=2)
-
-        print(f"\n=== Result ===")
-        print(f"  File:          {out_name}")
-        print(f"  Total:         {stats['total']}")
-        print(f"  Translated:    {stats['translated']}")
-        print(f"  Missing:       {stats['missing']}")
-        print(f"  Mismatch:      {stats.get('mismatch', 0)} (token placeholders in foreign text)")
-        print(f"  Substituted:   {stats.get('tokenSubstitutions', 0)} (placeholders replaced with foreign values)")
-        print(f"  No loc key:    {stats['noLocKey']} (kept as-is)")
-
-        if stats["missing"] > 0:
-            print(f"\n=== Missing keys ({stats['missing']}) ===")
-            for k in stats["missingKeys"][:20]:
-                print(f"  {k}")
-            if stats["missing"] > 20:
-                print(f"  ... and {stats['missing'] - 20} more")
-            print(f"\nThese keys are missing from the foreign global.ini.")
-            print(f"Fallback: English text is used.")
-
-        if stats.get("mismatch", 0) > 0:
-            print(f"\n=== Token mismatches ({stats['mismatch']}) ===")
-            print(f"These keys have token placeholders in the foreign text")
-            print(f"that were already resolved in the English version.")
-            for k in stats["mismatchKeys"][:30]:
-                en_text = translation["keys"].get(k, {}).get("en", "?")
-                tr_text = translation["keys"].get(k, {}).get("tr", "?")
-                # Truncate for console
-                en_short = (en_text[:60] + "...") if len(en_text) > 63 else en_text
-                tr_short = (tr_text[:60] + "...") if len(tr_text) > 63 else tr_text
-                print(f"  {k}")
-                for label, text in [("EN", en_short), ("TR", tr_short)]:
-                    try:
-                        print(f"    {label}: {text}")
-                    except UnicodeEncodeError:
-                        print(f"    {label}: {text.encode('ascii', 'replace').decode()}")
-            if stats["mismatch"] > 30:
-                print(f"  ... and {stats['mismatch'] - 30} more")
-
-    else:
-        # Generate template (rawKeys only relevant in translate mode, but stored anyway)
-        template = build_template(all_keys, version, raw_keys)
-        out_name = f"lang-template-{version}.json"
-        out_path = os.path.join(SCRIPT_DIR, out_name)
-
-        with open(out_path, "w", encoding="utf-8") as f:
-            json.dump(template, f, ensure_ascii=False, indent=2)
-
-        print(f"\n-> {out_name} ({total} keys)")
-        print(f"   Translators: python build_lang_template.py -p {args.profile} --translate path/to/global.ini")
+    print(f"\n-> {out_name} ({total} keys)")
+    print(f"   Translators: python build_lang_template.py --translate path/to/global.ini")
 
 
 if __name__ == "__main__":
