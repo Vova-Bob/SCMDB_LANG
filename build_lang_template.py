@@ -500,6 +500,7 @@ def build_translation(template: dict, foreign_ini_path: str, version: str,
     mismatched = []
     substituted = 0
     placeholder_fallback = 0
+    length_fallback = 0
 
     for key, english_text in template.get("keys", {}).items():
         if key.startswith("_noloc_"):
@@ -526,6 +527,13 @@ def build_translation(template: dict, foreign_ini_path: str, version: str,
             subs = token_subs.get(key, {})
             if subs:
                 for token_name, loc_key in subs.items():
+                    # Skip Contractor sub-tokens (Title/Description/SignOff)
+                    # — these are ~mission(Contractor|SubKey) redirects whose
+                    # value is the RESOLVED text for a DIFFERENT field.
+                    # They share the [CONTRACTOR] placeholder but replacing it
+                    # would put a title into a description or vice versa.
+                    if "|" in token_name and token_name.split("|")[0] == "Contractor":
+                        continue
                     # Determine placeholder name (e.g. ReputationRank -> [RANK])
                     placeholder = _TOKEN_DISPLAY_MAP.get(
                         token_name,
@@ -594,10 +602,11 @@ def build_translation(template: dict, foreign_ini_path: str, version: str,
 
     stats = {
         "total": len(template.get("keys", {})),
-        "translated": len(translated) - len(missing) - len(noloc) - placeholder_fallback,
+        "translated": len(translated) - len(missing) - len(noloc) - placeholder_fallback - length_fallback,
         "missing": len(missing),
         "noLocKey": len(noloc),
         "placeholderFallback": placeholder_fallback,
+        "lengthFallback": length_fallback,
         "mismatch": len(mismatched),
         "tokenSubstitutions": substituted,
         "missingKeys": sorted(missing),
@@ -626,6 +635,7 @@ def _print_translation_report(translation, stats, out_name):
     print(f"  Translated:    {stats['translated']}")
     print(f"  Missing:       {stats['missing']}")
     print(f"  Placeholder:   {stats.get('placeholderFallback', 0)} (placeholder-only -> EN fallback)")
+    print(f"  Length:        {stats.get('lengthFallback', 0)} (suspiciously short -> EN fallback)")
     print(f"  Mismatch:      {stats.get('mismatch', 0)} (token placeholders in foreign text)")
     print(f"  Substituted:   {stats.get('tokenSubstitutions', 0)} (placeholders replaced with foreign values)")
     print(f"  No loc key:    {stats['noLocKey']} (kept as-is)")
