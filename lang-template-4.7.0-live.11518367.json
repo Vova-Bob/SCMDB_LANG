@@ -1,6 +1,6 @@
 {
   "version": "4.7.0-live.11518367",
-  "keyCount": 3463,
+  "keyCount": 3484,
   "keys": {
     "Covalex_RecoverCargo_VeryEasy_Title": "@Covalex_RecoverCargo_VeryEasy_Title",
     "Headhunters_Delivery_Outpost_title_001": "[DESTINATION] Errand",
@@ -3464,7 +3464,28 @@
     "items_commodities_tin_ore": "Tin (Ore)",
     "items_commodities_titanium_ore": "Titanium (Ore)",
     "items_commodities_torite_ore": "Torite (Ore)",
-    "items_commodities_tungsten_ore": "Tungsten (Ore)"
+    "items_commodities_tungsten_ore": "Tungsten (Ore)",
+    "mobiglas_ui_BountyHunter": "Bounty Hunter",
+    "mobiGlas_ui_MissionType_Collection": "Collection",
+    "mobiGlas_ui_MissionType_Courier": "Courier",
+    "mobiGlas_ui_MissionType_Delivery": "Delivery",
+    "mobiglas_ui_GroundMining": "Ground Vehicle Mining",
+    "mobiglas_ui_FPSMining": "Hand Mining",
+    "mobiGlas_ui_MissionType_Hauling": "Hauling",
+    "mobiGlas_ui_MissionType_Hauling_Interstellar": "Hauling - Interstellar",
+    "mobiGlas_ui_MissionType_Hauling_Local": "Hauling - Local",
+    "mobiGlas_ui_MissionType_Hauling_Planetary": "Hauling - Planetary",
+    "mobiGlas_ui_MissionType_Hauling_Solar": "Hauling - Stellar",
+    "mobiglas_ui_Investigation": "Investigation",
+    "mobiglas_ui_Maintenance": "Maintenance",
+    "mobiglas_ui_Mercenary": "Mercenary",
+    "mobiglas_ui_Priority": "Priority",
+    "mobiglas_ui_PVPMissions": "PvP Missions",
+    "mobiglas_ui_Salvage": "Salvage",
+    "mobiglas_ui_ShipMining": "Ship Mining",
+    "ContractManager_TempTab_Small_Items": "Wikelo - Other Items",
+    "ContractManager_TempTab_Vehicles": "Wikelo - Vehicles",
+    "chat_command_local": "local"
   },
   "rawKeys": {
     "Covalex_RecoverCargo_VeryEasy_Description": "Hi,\\n\\nSo I had a contractor who was supposed to deliver some stuff for us but has completely gone off the radar. I've pinged their ship and I've got no idea what's happened but they're floating around somewhere over at <EM4>~mission(Location|Address)</EM4>. If you could head over there recover the cargo and take it to the freight elevator at <EM4>~mission(Destination|Address)</EM4> you'd be doing me a huge favor.\\n\\nDon't forget to bring a <EM4>heavy-duty tractor beam</EM4> to move all the cargo. Oh and a ship that can transport <EM4>~mission(MissionMaxSCUSize) cargo containers</EM4>.\\n\\n~mission(Contractor|SignOff)\\n\\nElla Tieno \\nJr. Logistics Coordinator \\nCovalex Shipping   \\n'Anything you need, anywhere you need it.' \\n\\n\\n\\n\\n\\n\\n\\nCovalex Shipping is a limited liability corporation. To encourage timely deliveries and prevent fraud on cargo hauls, Covalex Shipping will set a delivery time limit and upon expiration, any undelivered cargo will be considered stolen and treated as such. Total payment will be prorated according to the percentage of cargo successfully delivered.",

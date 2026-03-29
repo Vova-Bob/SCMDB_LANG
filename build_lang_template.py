@@ -471,6 +471,44 @@ def collect_keys_from_mining(prefix: str, version: str, reverse: dict) -> dict:
     return mining
 
 
+# UI keys: Mission Types + Contract Manager tabs
+# Diese Keys tauchen nicht in den Contract-Daten auf, werden aber vom
+# Frontend fuer die Mission-Type-Labels gebraucht.
+_UI_KEYS = [
+    "mobiglas_ui_BountyHunter",
+    "mobiGlas_ui_MissionType_Collection",
+    "mobiGlas_ui_MissionType_Courier",
+    "mobiGlas_ui_MissionType_Delivery",
+    "mobiglas_ui_GroundMining",
+    "mobiglas_ui_FPSMining",
+    "mobiGlas_ui_MissionType_Hauling",
+    "mobiGlas_ui_MissionType_Hauling_Interstellar",
+    "mobiGlas_ui_MissionType_Hauling_Local",
+    "mobiGlas_ui_MissionType_Hauling_Planetary",
+    "mobiGlas_ui_MissionType_Hauling_Solar",
+    "mobiglas_ui_Investigation",
+    "mobiglas_ui_Maintenance",
+    "mobiglas_ui_Mercenary",
+    "mobiglas_ui_Priority",
+    "mobiglas_ui_PVPMissions",
+    "mobiglas_ui_Salvage",
+    "mobiglas_ui_ShipMining",
+    "ContractManager_TempTab_Small_Items",
+    "ContractManager_TempTab_Vehicles",
+    "chat_command_local",
+]
+
+
+def collect_ui_keys(en_loc: dict) -> dict:
+    """Collect mission type and UI keys from English global.ini."""
+    ui = {}
+    for key in _UI_KEYS:
+        val = en_loc.get(key) or en_loc.get(f"@{key}")
+        if val:
+            ui[key] = normalize_runtime_tokens(val)
+    return ui
+
+
 # ---------------------------------------------------------------------------
 # Build template
 # ---------------------------------------------------------------------------
@@ -754,6 +792,11 @@ def main():
     mining_keys = collect_keys_from_mining(prefix, version, reverse)
     if mining_keys:
         all_keys["mining"] = mining_keys
+
+    # UI: Mission Types + Contract Manager tabs
+    ui_keys = collect_ui_keys(en_loc)
+    if ui_keys:
+        all_keys["ui"] = ui_keys
 
     # Stats
     total = sum(len(v) for v in all_keys.values())
