@@ -499,6 +499,36 @@ _UI_KEYS = [
 ]
 
 
+def collect_rank_keys(merged_path: str, loc: dict) -> dict:
+    """Collect rank nameKeys from minStanding/maxStanding in merged JSON."""
+    ranks = {}
+    with open(merged_path, encoding="utf-8") as f:
+        data = json.load(f)
+    for c in list(data.get("contracts", [])) + list(data.get("legacyContracts", [])):
+        for field in ("minStanding", "maxStanding"):
+            s = c.get(field)
+            if not isinstance(s, dict):
+                continue
+            nk = s.get("nameKey")
+            name = s.get("name")
+            if nk and name and nk not in ranks:
+                ranks[nk] = name
+    return ranks
+
+
+def collect_resource_keys(merged_path: str, loc: dict) -> dict:
+    """Collect resource nameKeys from resourcePools in merged JSON."""
+    resources = {}
+    with open(merged_path, encoding="utf-8") as f:
+        data = json.load(f)
+    for pool_entry in data.get("resourcePools", {}).values():
+        nk = pool_entry.get("nameKey")
+        name = pool_entry.get("name")
+        if nk and name and nk not in resources:
+            resources[nk] = name
+    return resources
+
+
 def collect_ui_keys(en_loc: dict) -> dict:
     """Collect mission type and UI keys from English global.ini."""
     ui = {}
@@ -797,6 +827,16 @@ def main():
     ui_keys = collect_ui_keys(en_loc)
     if ui_keys:
         all_keys["ui"] = ui_keys
+
+    # Ranks
+    rank_keys = collect_rank_keys(merged_path, en_loc)
+    if rank_keys:
+        all_keys["ranks"] = rank_keys
+
+    # Resources (Hauling Commodities)
+    resource_keys = collect_resource_keys(merged_path, en_loc)
+    if resource_keys:
+        all_keys["resources"] = resource_keys
 
     # Stats
     total = sum(len(v) for v in all_keys.values())
